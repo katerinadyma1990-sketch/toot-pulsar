@@ -79,6 +79,31 @@
     });
   }
 
+  // Голосовые команды: страница Google не может включить микрофон, поэтому слушает приложение и передаёт фразу офису.
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null;
+  function toOffice(msg) {
+    var f = document.querySelector('iframe'); if (!f) return;
+    (function all(w) { try { w.postMessage(msg, '*'); } catch (e) {} try { for (var i = 0; i < w.frames.length; i++) all(w.frames[i]); } catch (e) {} })(f.contentWindow);
+  }
+  window.addEventListener('message', function (e) {
+    var host = ''; try { host = new URL(e.origin).hostname; } catch (x) { return; }
+    if (!/\.googleusercontent\.com$/.test(host) || !e.data || typeof e.data !== 'object') return;
+    if (e.data.type === 'pulsar-stop') { if (rec) rec.stop(); return; }
+    if (e.data.type !== 'pulsar-listen') return;
+    if (!SR) { toOffice({ type: 'pulsar-error', text: 'Этот браузер не умеет распознавать речь. Откройте приложение в Chrome или Safari.' }); return; }
+    rec = new SR(); rec.lang = 'ru-RU'; rec.interimResults = false; rec.maxAlternatives = 3;
+    rec.onstart = function () { toOffice({ type: 'pulsar-state', on: true }); };
+    rec.onend = function () { toOffice({ type: 'pulsar-state', on: false }); };
+    rec.onerror = function (ev) {
+      toOffice({ type: 'pulsar-error', text: ev.error === 'not-allowed' || ev.error === 'service-not-allowed' ? 'Нет доступа к микрофону. Разрешите микрофон для приложения PULSAR в настройках.' : ev.error === 'no-speech' ? 'Ничего не услышала — нажмите микрофон и скажите ещё раз.' : 'Не получилось распознать речь.' });
+    };
+    rec.onresult = function (ev) {
+      var alts = []; for (var i = 0; i < ev.results[0].length; i++) alts.push(ev.results[0][i].transcript);
+      toOffice({ type: 'pulsar-heard', text: alts[0], all: alts.join(' ') });
+    };
+    try { rec.start(); } catch (x) { toOffice({ type: 'pulsar-error', text: 'Микрофон недоступен.' }); }
+  });
+
   var code = getCode();
   if (code) start(code); else askCode();
 </script>
