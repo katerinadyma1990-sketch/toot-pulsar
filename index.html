@@ -57,7 +57,7 @@
   function start(code) {
     var app = document.createElement('iframe');
     app.title = 'PULSAR';
-    app.allow = 'clipboard-write';
+    app.allow = 'clipboard-write; microphone; autoplay';
     app.src = OFFICE + '?k=' + encodeURIComponent(code);
     app.addEventListener('load', function () { splash.classList.add('gone'); });
     document.body.appendChild(app);
